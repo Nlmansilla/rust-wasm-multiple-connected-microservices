@@ -67,7 +67,7 @@ jobs:
         echo -e "Testing /compute"
         resp=$(curl http://localhost:8002/compute -X POST -d @order_wo_zip.json)
         echo "$resp"
-        if [[ $resp == *zip code* ]]; then
+        if [[ $resp == *"zip code"* ]]; then
           echo -e "Execution Success!"
         else
           echo -e "Execution Fail!"
