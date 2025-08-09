@@ -55,9 +55,19 @@ jobs:
     - name: test
       run: |
         sleep 15
+        echo -e "Testing ok /compute"
         resp=$(curl http://localhost:8002/compute -X POST -d @order.json)
         echo "$resp"
         if [[ $resp == *"21.65"* ]]; then
+          echo -e "Execution Success!"
+        else
+          echo -e "Execution Fail!"
+          exit 1
+        fi
+        echo -e "Testing /compute"
+        resp=$(curl http://localhost:8002/compute -X POST -d @order_wo_zip.json)
+        echo "$resp"
+        if [[ $resp == *zip code* ]]; then
           echo -e "Execution Success!"
         else
           echo -e "Execution Fail!"
