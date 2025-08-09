@@ -29,6 +29,12 @@ struct Order {
     total: f32,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ResponseBody {
+    status: String,
+    message: String
+}
+
 /*
 impl Order {
     fn new(
@@ -58,7 +64,7 @@ impl Order {
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
     match (req.method(), req.uri().path()) {
         // CORS OPTIONS
-        (&Method::OPTIONS, "/compute") => Ok(response_build(&String::from(""))),
+        (&Method::OPTIONS, "/compute") => Ok(response_build(&String::from(""), StatusCode::OK)),
 
         // Serve some instructions at /
         (&Method::GET, "/") => Ok(Response::new(Body::from(
@@ -73,13 +79,37 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
             let rate = client.post(&*SALES_TAX_RATE_SERVICE)
                 .body(order.shipping_zip.clone())
                 .send()
-                .await?
-                .text()
-                .await?
-                .parse::<f32>()?;
+                .await?;
 
-            order.total = order.subtotal * (1.0 + rate);
-            Ok(response_build(&serde_json::to_string_pretty(&order)?))
+            dbg!(&rate);
+
+            match rate.status() {
+                StatusCode::OK => {
+                    dbg!("OK");
+                    let rate = rate.text()
+                        .await?
+                        .parse::<f32>()?;
+                    order.total = order.subtotal * (1.0 + rate);
+                    Ok(response_build(&serde_json::to_string_pretty(&order)?, StatusCode::NOT_FOUND))
+                }
+                StatusCode::NOT_FOUND => {
+                    dbg!("NOT FOUND");
+                    let response_body = ResponseBody {
+                        status: "error".into(),
+                        message: "The zip code in the order does not have a corresponding sales tax rate.".into()
+                    };
+                    Ok(response_build(&serde_json::to_string_pretty(&response_body)?, StatusCode::INTERNAL_SERVER_ERROR))
+                }
+                _ => {
+                    dbg!("ERROR");
+                    let response_body = ResponseBody {
+                        status: "error".into(),
+                        message: "Something went wrong in the server".into()
+                    };
+                    Ok(response_build(&serde_json::to_string_pretty(&response_body)?, StatusCode::INTERNAL_SERVER_ERROR))
+
+                }
+            }
         }
 
         // Return the 404 Not Found for other routes.
@@ -92,8 +122,9 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, anyhow::Er
 }
 
 // CORS headers
-fn response_build(body: &str) -> Response<Body> {
+fn response_build(body: &str, status: StatusCode) -> Response<Body> {
     Response::builder()
+        .status(status)
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         .header("Access-Control-Allow-Headers", "api,Keep-Alive,User-Agent,Content-Type")

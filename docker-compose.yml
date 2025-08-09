@@ -13,7 +13,7 @@ services:
       context: sales_tax_rate
     ports:
       - 8001:8001
-    restart: unless-stopped
+    #restart: unless-stopped
     runtime: io.containerd.wasmedge.v1
 
   order-total:
@@ -26,5 +26,5 @@ services:
     environment:
       SALES_TAX_RATE_SERVICE: http://sales-tax-rate:8001/find_rate
       RUST_BACKTRACE: full
-    restart: unless-stopped
+    #restart: unless-stopped
     runtime: io.containerd.wasmedge.v1
